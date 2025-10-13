@@ -1,0 +1,42 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../ConexionBDD'); // ← aquí usas el nuevo nombre
+
+// Ruta GET para listar productos
+router.get('/', (req, res) => {
+  db.query('SELECT * FROM productos', (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error al obtener productos' });
+    }
+    res.json(results);
+  });
+});
+
+// Ruta POST para agregar productos
+router.post('/', (req, res) => {
+  const { codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual } = req.body;
+
+  /*if (!codigo_barras || !nombre_producto || !id_categoria || !precio_compra || !precio_venta) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }*/
+
+  if (!codigo_barras){
+    return res.status(400).json({ error: 'El código de barras es obligatorio' });
+  }
+
+  const sql = `
+    INSERT INTO productos 
+    (codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(sql, [codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual || 0], (err, result) => {
+    if (err) {
+      console.error('Error al insertar producto:', err);
+      return res.status(500).json({ error: 'Error al insertar producto' });
+    }
+    res.status(201).json({ mensaje: 'Producto agregado correctamente', id: result.insertId });
+  });
+});
+
+module.exports = router;

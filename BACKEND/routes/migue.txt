@@ -1,0 +1,226 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../ConexionBDD'); // ← aquí usas el nuevo nombre
+
+// Ruta GET para listar productos
+router.get('/', (req, res) => {
+  db.query('SELECT * FROM productos', (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error al obtener productos' });
+    }
+    res.json(results);
+  });
+});
+
+// Ruta POST para agregar productos
+router.post('/', (req, res) => {
+  const { codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual } = req.body;
+
+  if (!codigo_barras || !nombre_producto || !id_categoria || !precio_compra || !precio_venta) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+
+  const sql = `
+    INSERT INTO productos 
+    (codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(sql, [codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual || 0], (err, result) => {
+    if (err) {
+      console.error('Error al insertar producto:', err);
+      return res.status(500).json({ error: 'Error al insertar producto' });
+    }
+    res.status(201).json({ mensaje: 'Producto agregado correctamente', id: result.insertId });
+  });
+});
+
+// Ruta GET para buscar producto por código de barras
+router.get('/buscar/:codigo_barras', (req, res) => {
+  const { codigo_barras } = req.params;
+  
+  const sql = 'SELECT * FROM productos WHERE codigo_barras = ?';
+  
+  db.query(sql, [codigo_barras], (err, results) => {
+    if (err) {
+      console.error('Error al buscar producto:', err);
+      return res.status(500).json({ error: 'Error al buscar producto' });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ 
+        mensaje: 'Producto no encontrado',
+        codigo_barras: codigo_barras,
+        encontrado: false 
+      });
+    }
+    
+    res.json({
+      mensaje: 'Producto encontrado',
+      producto: results[0],
+      encontrado: true
+    });
+  });
+});
+
+// Ruta POST específica para recibir datos de Barcode to PC
+router.post('/barcode-scan', (req, res) => {
+  console.log('📱 Datos recibidos de Barcode to PC:', req.body);
+  
+  const { 
+    barcode, 
+    device_name, 
+    scan_session, 
+    timestamp,
+    session_name 
+  } = req.body;
+
+  if (!barcode) {
+    return res.status(400).json({ 
+      error: 'Código de barras requerido',
+      success: false 
+    });
+  }
+
+  // Buscar si el producto ya existe
+  const buscarSql = 'SELECT * FROM productos WHERE codigo_barras = ?';
+  
+  db.query(buscarSql, [barcode], (err, results) => {
+    if (err) {
+      console.error('Error al buscar producto:', err);
+      return res.status(500).json({ 
+        error: 'Error al buscar producto',
+        success: false 
+      });
+    }
+
+    if (results.length > 0) {
+      // Producto encontrado - actualizar stock o mostrar información
+      const producto = results[0];
+      console.log('✅ Producto encontrado:', producto.nombre_producto);
+      
+      res.json({
+        success: true,
+        mensaje: 'Producto encontrado',
+        producto: {
+          id: producto.id_producto,
+          codigo_barras: producto.codigo_barras,
+          nombre: producto.nombre_producto,
+          precio_venta: producto.precio_venta,
+          stock_actual: producto.stock_actual
+        },
+        accion: 'encontrado',
+        metadata: {
+          device_name,
+          scan_session,
+          session_name,
+          timestamp: timestamp || new Date().toISOString()
+        }
+      });
+    } else {
+      // Producto no encontrado - necesita registro manual
+      console.log('❌ Producto no encontrado:', barcode);
+      
+      res.json({
+        success: true,
+        mensaje: 'Producto no encontrado - requiere registro manual',
+        codigo_barras: barcode,
+        accion: 'registro_requerido',
+        metadata: {
+          device_name,
+          scan_session,
+          session_name,
+          timestamp: timestamp || new Date().toISOString()
+        }
+      });
+    }
+  });
+});
+
+// Ruta POST para registrar producto desde código de barras (con datos mínimos)
+router.post('/registrar-desde-barcode', (req, res) => {
+  const { 
+    codigo_barras, 
+    nombre_producto, 
+    id_categoria = 1, // Categoría por defecto
+    precio_compra = 0, 
+    precio_venta = 0, 
+    stock_actual = 1,
+    device_name,
+    scan_session 
+  } = req.body;
+
+  if (!codigo_barras || !nombre_producto) {
+    return res.status(400).json({ 
+      error: 'Código de barras y nombre del producto son obligatorios',
+      success: false 
+    });
+  }
+
+  // Verificar que no exista ya
+  const verificarSql = 'SELECT id_producto FROM productos WHERE codigo_barras = ?';
+  
+  db.query(verificarSql, [codigo_barras], (err, results) => {
+    if (err) {
+      console.error('Error al verificar producto:', err);
+      return res.status(500).json({ 
+        error: 'Error al verificar producto',
+        success: false 
+      });
+    }
+
+    if (results.length > 0) {
+      return res.status(409).json({ 
+        error: 'El producto con este código de barras ya existe',
+        success: false 
+      });
+    }
+
+    // Insertar nuevo producto
+    const insertarSql = `
+      INSERT INTO productos 
+      (codigo_barras, nombre_producto, id_categoria, precio_compra, precio_venta, stock_actual)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(insertarSql, [
+      codigo_barras, 
+      nombre_producto, 
+      id_categoria, 
+      precio_compra, 
+      precio_venta, 
+      stock_actual
+    ], (err, result) => {
+      if (err) {
+        console.error('Error al insertar producto:', err);
+        return res.status(500).json({ 
+          error: 'Error al registrar producto',
+          success: false 
+        });
+      }
+
+      console.log('✅ Producto registrado desde código de barras:', nombre_producto);
+      
+      res.status(201).json({ 
+        mensaje: 'Producto registrado correctamente',
+        producto: {
+          id: result.insertId,
+          codigo_barras,
+          nombre_producto,
+          id_categoria,
+          precio_compra,
+          precio_venta,
+          stock_actual
+        },
+        success: true,
+        metadata: {
+          device_name,
+          scan_session,
+          timestamp: new Date().toISOString()
+        }
+      });
+    });
+  });
+});
+
+module.exports = router;
