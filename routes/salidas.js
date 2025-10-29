@@ -56,7 +56,7 @@ router.post('/', (req, res) => {
     // Registrar la salida
     const sqlInsert = `
       INSERT INTO salidas (id_producto, id_usuario, nombre_cajero, cantidad, precio_unitario)
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, CURDATE())
     `;
 
     db.query(sqlInsert, [id_producto, id_usuario, nombre_cajero || null, cantidad, precio_unitario], (err, result) => {
