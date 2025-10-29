@@ -73,7 +73,7 @@ router.post('/', (req, res) => {
 
   const sql = `
     INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario)
-    VALUES (?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, CURDATE())
   `;
 
   db.query(sql, [id_producto, id_usuario || null, nombre_usuario || null, cantidad, precio_unitario], (err, result) => {
@@ -90,7 +90,8 @@ router.post('/', (req, res) => {
         id_usuario,
         nombre_usuario,
         cantidad,
-        precio_unitario
+        precio_unitario,
+        fecha: new Date().toISOString().split('T')[0]
       }
     });
   });
