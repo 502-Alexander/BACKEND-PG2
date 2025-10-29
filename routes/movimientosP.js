@@ -33,8 +33,8 @@ router.post('/', (req, res) => {
 
   const sql = `
     INSERT INTO movimientos 
-    (id_producto, tipo_movimiento, cantidad, stock_resultante, origen_movimiento)
-    VALUES (?, ?, ?, ?, ?)
+    (id_producto, tipo_movimiento, cantidad, stock_resultante, origen_movimiento, fecha)
+    VALUES (?, ?, ?, ?, ?, CURDATE())
   `;
   db.query(sql, [id_producto, tipo_movimiento, cantidad, stock_resultante, origen_movimiento || 'AJUSTE_INVENTARIO'], (err, result) => {
     if (err) {
