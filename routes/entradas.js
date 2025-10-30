@@ -65,6 +65,7 @@ router.get('/:id', (req, res) => {
 
 // ✅ Ruta POST - Crear nueva entrada
 // ✅ Ruta POST - Crear nueva entrada (VERSIÓN CORREGIDA)
+// ✅ Ruta POST CORREGIDA - Sin la columna 'total'
 router.post('/', (req, res) => {
   const { id_producto, cantidad, precio_unitario, id_usuario, nombre_usuario } = req.body;
 
@@ -72,13 +73,10 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Todos los campos son obligatorios (id_producto, cantidad, precio_unitario)' });
   }
 
-  // Calcular el total
-  const total = cantidad * parseFloat(precio_unitario);
-
-  // SQL CORREGIDO - Incluir todas las columnas necesarias
+  // SQL CORREGIDO - Quitar 'total' de las columnas
   const sql = `
-    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario, fecha, total)
-    VALUES (?, ?, ?, ?, ?, CURDATE(), ?)
+    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario, fecha)
+    VALUES (?, ?, ?, ?, ?, CURDATE())
   `;
 
   const values = [
@@ -86,27 +84,62 @@ router.post('/', (req, res) => {
     id_usuario || null, 
     nombre_usuario || null, 
     cantidad, 
-    precio_unitario,
-    total  // Agregar el total calculado
+    precio_unitario
   ];
+
+  console.log('🔍 Ejecutando SQL:', sql);
+  console.log('🔍 Con valores:', values);
 
   db.query(sql, values, (err, result) => {
     if (err) {
-      console.error('Error al crear la entrada:', err);
-      return res.status(500).json({ error: 'Error al crear la entrada: ' + err.message });
+      console.error('❌ Error al crear la entrada:', err);
+      return res.status(500).json({ 
+        error: 'Error al crear la entrada: ' + err.message,
+        sqlMessage: err.sqlMessage 
+      });
     }
 
-    res.status(201).json({
-      mensaje: 'Entrada registrada correctamente',
-      entrada: {
-        id_entrada: result.insertId,
-        id_producto,
-        id_usuario,
-        nombre_usuario,
-        cantidad,
-        precio_unitario,
-        total: total
+    // Obtener la entrada recién creada para incluir el total calculado
+    const selectSql = `
+      SELECT e.*, p.nombre_producto 
+      FROM entradas e 
+      INNER JOIN productos p ON e.id_producto = p.id_producto 
+      WHERE e.id_entrada = ?
+    `;
+
+    db.query(selectSql, [result.insertId], (selectErr, selectResults) => {
+      if (selectErr) {
+        console.error('Error al obtener entrada creada:', selectErr);
+        // Aún así responder éxito, pero sin el total
+        return res.status(201).json({
+          mensaje: 'Entrada registrada correctamente',
+          entrada: {
+            id_entrada: result.insertId,
+            id_producto,
+            id_usuario,
+            nombre_usuario,
+            cantidad,
+            precio_unitario
+          }
+        });
       }
+
+      const entradaCreada = selectResults[0];
+      
+      res.status(201).json({
+        mensaje: 'Entrada registrada correctamente',
+        entrada: {
+          id_entrada: entradaCreada.id_entrada,
+          id_producto: entradaCreada.id_producto,
+          id_usuario: entradaCreada.id_usuario,
+          nombre_usuario: entradaCreada.nombre_usuario,
+          cantidad: entradaCreada.cantidad,
+          precio_unitario: entradaCreada.precio_unitario,
+          total: entradaCreada.total, // Este viene de la BD (calculado automáticamente)
+          fecha: entradaCreada.fecha,
+          nombre_producto: entradaCreada.nombre_producto
+        }
+      });
     });
   });
 });
