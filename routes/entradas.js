@@ -72,20 +72,11 @@ router.post('/', (req, res) => {
   }
 
   const sql = `
-    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario, fecha)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario)
+    VALUES (?, ?, ?, ?, ?)
   `;
 
-  const values = [
-    id_producto,
-    id_usuario || null,
-    nombre_usuario || null,
-    cantidad,
-    precio_unitario,
-    new Date().toISOString().split('T')[0]
-  ];
-
-  db.query(sql, values, (err, result) => {
+  db.query(sql, [id_producto, id_usuario || null, nombre_usuario || null, cantidad, precio_unitario], (err, result) => {
     if (err) {
       console.error('Error al crear la entrada:', err);
       return res.status(500).json({ error: 'Error al crear la entrada' });
@@ -99,8 +90,7 @@ router.post('/', (req, res) => {
         id_usuario,
         nombre_usuario,
         cantidad,
-        precio_unitario,
-        fecha: new Date().toISOString().split('T')[0]
+        precio_unitario
       }
     });
   });
