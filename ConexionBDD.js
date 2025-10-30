@@ -11,7 +11,8 @@ const db = mysql.createConnection({
   connectTimeout: 60000, // 60 segundos de timeout
   ssl: {
     rejectUnauthorized: false // Necesario para Railway
-  }
+  },
+  timezone: '-06:00'
 });
 
 db.connect(err => {
@@ -24,6 +25,10 @@ db.connect(err => {
   } else {
     console.log('✅ Conectado a la base de datos MySQL en Railway');
     console.log(`📍 Host: ${process.env.DB_HOST}`);
+    console.log('✅ Zona horaria configurada a Guatemala (UTC-6)');
+
+    // Configurar zona horaria por si acaso
+    db.execute("SET time_zone = '-06:00'");
   }
 });
 
