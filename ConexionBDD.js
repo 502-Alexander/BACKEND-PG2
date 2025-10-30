@@ -8,11 +8,11 @@ const db = mysql.createConnection({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  connectTimeout: 60000, // 60 segundos de timeout
+  connectTimeout: 60000,
   ssl: {
-    rejectUnauthorized: false // Necesario para Railway
-  },
-  timezone: '-06:00'
+    rejectUnauthorized: false
+  }
+  // QUITAMOS timezone de aquí por ahora
 });
 
 db.connect(err => {
@@ -24,11 +24,40 @@ db.connect(err => {
     console.error('3. Tu conexión a internet funcione correctamente');
   } else {
     console.log('✅ Conectado a la base de datos MySQL en Railway');
-    console.log(`📍 Host: ${process.env.DB_HOST}`);
-    console.log('✅ Zona horaria configurada a Guatemala (UTC-6)');
-
-    // Configurar zona horaria por si acaso
-    db.execute("SET time_zone = '-06:00'");
+    
+    // PRIMERO: Verificar la zona horaria actual
+    db.execute("SELECT @@global.time_zone, @@session.time_zone, NOW(), CURDATE()", (err, results) => {
+      if (err) {
+        console.error('❌ Error al verificar zona horaria:', err);
+        return;
+      }
+      
+      console.log('🔍 Estado actual:');
+      console.log(`   Zona global: ${results[0]['@@global.time_zone']}`);
+      console.log(`   Zona sesión: ${results[0]['@@session.time_zone']}`);
+      console.log(`   NOW(): ${results[0]['NOW()']}`);
+      console.log(`   CURDATE(): ${results[0]['CURDATE()']}`);
+      
+      // SEGUNDO: Configurar zona horaria
+      db.execute("SET time_zone = '-06:00'", (error) => {
+        if (error) {
+          console.error('❌ Error al configurar zona horaria:', error);
+          return;
+        }
+        
+        console.log('✅ Zona horaria configurada a Guatemala (UTC-6)');
+        
+        // TERCERO: Verificar que se aplicó
+        db.execute("SELECT NOW() as ahora, CURDATE() as hoy", (err, results) => {
+          if (!err && results.length > 0) {
+            console.log('🎯 Después de configurar:');
+            console.log(`   NOW(): ${results[0].ahora}`);
+            console.log(`   CURDATE(): ${results[0].hoy}`);
+            console.log('📍 La fecha debería ser la actual de Guatemala');
+          }
+        });
+      });
+    });
   }
 });
 
