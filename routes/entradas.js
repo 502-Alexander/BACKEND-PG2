@@ -76,7 +76,16 @@ router.post('/', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(sql, [id_producto, id_usuario || null, nombre_usuario || null, cantidad, precio_unitario], (err, result) => {
+  const values = [
+    id_producto,
+    id_usuario || null,
+    nombre_usuario || null,
+    cantidad,
+    precio_unitario,
+    new Date().toISOString().split('T')[0]
+  ];
+
+  db.query(sql, values, (err, result) => {
     if (err) {
       console.error('Error al crear la entrada:', err);
       return res.status(500).json({ error: 'Error al crear la entrada' });
