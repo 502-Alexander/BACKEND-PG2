@@ -64,6 +64,7 @@ router.get('/:id', (req, res) => {
 });
 
 // ✅ Ruta POST - Crear nueva entrada
+// ✅ Ruta POST - Crear nueva entrada (VERSIÓN CORREGIDA)
 router.post('/', (req, res) => {
   const { id_producto, cantidad, precio_unitario, id_usuario, nombre_usuario } = req.body;
 
@@ -71,15 +72,28 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Todos los campos son obligatorios (id_producto, cantidad, precio_unitario)' });
   }
 
+  // Calcular el total
+  const total = cantidad * parseFloat(precio_unitario);
+
+  // SQL CORREGIDO - Incluir todas las columnas necesarias
   const sql = `
-    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario, fecha, total)
+    VALUES (?, ?, ?, ?, ?, CURDATE(), ?)
   `;
 
-  db.query(sql, [id_producto, id_usuario || null, nombre_usuario || null, cantidad, precio_unitario], (err, result) => {
+  const values = [
+    id_producto, 
+    id_usuario || null, 
+    nombre_usuario || null, 
+    cantidad, 
+    precio_unitario,
+    total  // Agregar el total calculado
+  ];
+
+  db.query(sql, values, (err, result) => {
     if (err) {
       console.error('Error al crear la entrada:', err);
-      return res.status(500).json({ error: 'Error al crear la entrada' });
+      return res.status(500).json({ error: 'Error al crear la entrada: ' + err.message });
     }
 
     res.status(201).json({
@@ -90,7 +104,8 @@ router.post('/', (req, res) => {
         id_usuario,
         nombre_usuario,
         cantidad,
-        precio_unitario
+        precio_unitario,
+        total: total
       }
     });
   });
