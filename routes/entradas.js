@@ -72,8 +72,8 @@ router.post('/', (req, res) => {
   }
 
   const sql = `
-    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario, fecha)
-    VALUES (?, ?, ?, ?, ?, CURDATE())
+    INSERT INTO entradas (id_producto, id_usuario, nombre_usuario, cantidad, precio_unitario)
+    VALUES (?, ?, ?, ?, ?)
   `;
 
   db.query(sql, [id_producto, id_usuario || null, nombre_usuario || null, cantidad, precio_unitario], (err, result) => {
