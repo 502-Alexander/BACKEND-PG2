@@ -11,8 +11,8 @@ const db = mysql.createConnection({
   connectTimeout: 60000,
   ssl: {
     rejectUnauthorized: false
-  }
-  // QUITAMOS timezone de aquí por ahora
+  },
+  timezone: '-06:00' // 🔥 Ajuste de zona horaria (Guatemala / Centroamérica)
 });
 
 db.connect(err => {
@@ -20,43 +20,24 @@ db.connect(err => {
     console.error('❌ Error de conexión a la base de datos:', err);
     console.error('Verifica que:');
     console.error('1. Las credenciales en .env sean correctas');
-    console.error('2. La base de datos de Railway esté activa');
+    console.error('2. La base de datos esté activa');
     console.error('3. Tu conexión a internet funcione correctamente');
   } else {
     console.log('✅ Conectado a la base de datos MySQL en Railway');
-    
-    // PRIMERO: Verificar la zona horaria actual
-    db.execute("SELECT @@global.time_zone, @@session.time_zone, NOW(), CURDATE()", (err, results) => {
+
+    // Verificación de la zona horaria aplicada
+    db.execute("SELECT @@global.time_zone AS global_tz, @@session.time_zone AS session_tz, NOW() AS ahora, CURDATE() AS hoy", (err, results) => {
       if (err) {
         console.error('❌ Error al verificar zona horaria:', err);
-        return;
+      } else if (results.length > 0) {
+        const r = results[0];
+        console.log('🔍 Estado de zona horaria MySQL:');
+        console.log(`   🌐 Global: ${r.global_tz}`);
+        console.log(`   🕓 Sesión: ${r.session_tz}`);
+        console.log(`   ⏰ NOW(): ${r.ahora}`);
+        console.log(`   📅 CURDATE(): ${r.hoy}`);
+        console.log('✅ Zona horaria ajustada correctamente a UTC-6 (Guatemala)');
       }
-      
-      console.log('🔍 Estado actual:');
-      console.log(`   Zona global: ${results[0]['@@global.time_zone']}`);
-      console.log(`   Zona sesión: ${results[0]['@@session.time_zone']}`);
-      console.log(`   NOW(): ${results[0]['NOW()']}`);
-      console.log(`   CURDATE(): ${results[0]['CURDATE()']}`);
-      
-      // SEGUNDO: Configurar zona horaria
-      db.execute("SET time_zone = '-06:00'", (error) => {
-        if (error) {
-          console.error('❌ Error al configurar zona horaria:', error);
-          return;
-        }
-        
-        console.log('✅ Zona horaria configurada a Guatemala (UTC-6)');
-        
-        // TERCERO: Verificar que se aplicó
-        db.execute("SELECT NOW() as ahora, CURDATE() as hoy", (err, results) => {
-          if (!err && results.length > 0) {
-            console.log('🎯 Después de configurar:');
-            console.log(`   NOW(): ${results[0].ahora}`);
-            console.log(`   CURDATE(): ${results[0].hoy}`);
-            console.log('📍 La fecha debería ser la actual de Guatemala');
-          }
-        });
-      });
     });
   }
 });
