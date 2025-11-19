@@ -6,7 +6,6 @@ const db = require('../ConexionBDD');
 // 🟢 Ruta POST - Registrar venta
 // ========================================
 router.post('/', (req, res) => {
-  //const { id_usuario, nombre_cajero, total, efectivo, cambio, productos } = req.body;
   const { id_usuario, nombre_cajero, total, efectivo, cambio, productos, fecha_venta } = req.body;
 
   // Validar datos obligatorios
@@ -14,9 +13,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
 
-  //-----------------------------------------------------------------------------
-
-    // Usar la fecha enviada desde el frontend o la fecha actual del servidor como fallback
+  // Usar la fecha enviada desde el frontend o la fecha actual del servidor como fallback
   // Si viene fecha_venta, usarla; si no, usar fecha/hora actual en zona horaria de Guatemala
   let fechaParaInsertar;
   if (fecha_venta) {
@@ -58,8 +55,6 @@ router.post('/', (req, res) => {
     fechaParaInsertar = `${fecha} ${hora}:${minutos}:${segundos}`;
   }
 
-  //-----------------------------------------------------------------------------
-
   // Iniciar transacción
   db.beginTransaction((err) => {
     if (err) {
@@ -70,10 +65,10 @@ router.post('/', (req, res) => {
     // 1️⃣ Insertar la venta en la tabla salidas (encabezado de venta)
     const insertarVentaSql = `
       INSERT INTO salidas (id_usuario, nombre_cajero, fecha, total, efectivo, cambio)
-      VALUES (?, ?, NOW(), ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(insertarVentaSql, [id_usuario, nombre_cajero, total, efectivo, cambio], (err, result) => {
+    db.query(insertarVentaSql, [id_usuario, nombre_cajero, fechaParaInsertar, total, efectivo, cambio], (err, result) => {
       if (err) {
         console.error('Error al insertar venta:', err);
         return db.rollback(() => {
@@ -219,6 +214,7 @@ router.get('/cajero/:id_usuario', (req, res) => {
     });
   });
 });
+
 
 // ========================================
 // 🟢 Ruta GET - Obtener detalles de una venta
