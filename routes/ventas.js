@@ -6,12 +6,59 @@ const db = require('../ConexionBDD');
 // 🟢 Ruta POST - Registrar venta
 // ========================================
 router.post('/', (req, res) => {
-  const { id_usuario, nombre_cajero, total, efectivo, cambio, productos } = req.body;
+  //const { id_usuario, nombre_cajero, total, efectivo, cambio, productos } = req.body;
+  const { id_usuario, nombre_cajero, total, efectivo, cambio, productos, fecha_venta } = req.body;
 
   // Validar datos obligatorios
   if (!id_usuario || !total || !productos || productos.length === 0) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
+
+  //-----------------------------------------------------------------------------
+
+    // Usar la fecha enviada desde el frontend o la fecha actual del servidor como fallback
+  // Si viene fecha_venta, usarla; si no, usar fecha/hora actual en zona horaria de Guatemala
+  let fechaParaInsertar;
+  if (fecha_venta) {
+    // La fecha viene en formato YYYY-MM-DD, agregar hora actual en zona horaria de Guatemala
+    const ahora = new Date();
+    const formatterHora = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Guatemala',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const partesHora = formatterHora.formatToParts(ahora);
+    const hora = partesHora.find(p => p.type === 'hour').value;
+    const minutos = partesHora.find(p => p.type === 'minute').value;
+    const segundos = partesHora.find(p => p.type === 'second').value;
+    fechaParaInsertar = `${fecha_venta} ${hora}:${minutos}:${segundos}`;
+  } else {
+    // Fallback: usar fecha/hora actual en zona horaria de Guatemala
+    const ahora = new Date();
+    const formatterFecha = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Guatemala',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const formatterHora = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Guatemala',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const fecha = formatterFecha.format(ahora);
+    const partesHora = formatterHora.formatToParts(ahora);
+    const hora = partesHora.find(p => p.type === 'hour').value;
+    const minutos = partesHora.find(p => p.type === 'minute').value;
+    const segundos = partesHora.find(p => p.type === 'second').value;
+    fechaParaInsertar = `${fecha} ${hora}:${minutos}:${segundos}`;
+  }
+
+  //-----------------------------------------------------------------------------
 
   // Iniciar transacción
   db.beginTransaction((err) => {
